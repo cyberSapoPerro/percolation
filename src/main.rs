@@ -1,4 +1,3 @@
-use std::error::Error;
 use plotters::prelude::*;
 use rand::RngExt;
 use clap::Parser;
@@ -44,7 +43,8 @@ fn generate_random_latice(length: usize, parameter: f64) -> RandomLatice {
 
 }
 
-fn generate_graph(latice: RandomLatice, length: usize) -> Result<(), Box<dyn Error>>{
+fn generate_graph(latice: RandomLatice, length: usize) 
+    -> Result<(), Box<dyn std::error::Error>> {
 
     let size = 2 * MARGIN + (length - 1)* CELL;
     let size = size as u32;
@@ -92,7 +92,7 @@ fn generate_graph(latice: RandomLatice, length: usize) -> Result<(), Box<dyn Err
     Ok(())
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     if !(0.0..=1.0).contains(&cli.parameter) {
