@@ -5,50 +5,140 @@ use clap::Parser;
 const CELL: usize = 20;
 const MARGIN: usize = 30;
 
-struct RandomLatice {
-    horizontal_edges: Vec<Vec<bool>>,
-    vertical_edges: Vec<Vec<bool>>,
-}
-
 #[derive(Parser)]
 struct Cli {
     #[arg(short)]
     length: usize,
     #[arg(short)]
     parameter: f64,
+    #[arg(short, long)]
+    output: String,
 }
 
-fn generate_random_latice(length: usize, parameter: f64) -> RandomLatice {
-    let mut rng = rand::rng();
+struct UnionFind {
+    parent: Vec<usize>,
+    size: Vec<usize>,
+}
 
-    let mut horizontal_edges = vec![vec![false; length - 1]; length];
-    let mut vertical_edges = vec![vec![false; length]; length - 1];
-
-    for row in &mut horizontal_edges {
-        for edge in row.iter_mut() {
-            *edge = rng.random_bool(parameter);
+impl UnionFind {
+    fn new(n: usize) -> Self {
+        Self {
+            parent: (0..n).collect(),
+            size:vec![1; n],
         }
     }
 
-    for row in &mut vertical_edges {
-        for edge in row.iter_mut() {
-            *edge = rng.random_bool(parameter);
+    fn find(&mut self, x: usize) -> usize {
+        if self.parent[x] != x {
+            self.parent[x] = self.find(self.parent[x]);
+        }
+        self.parent[x]
+    }
+
+    fn union(&mut self, a: usize, b: usize) {
+        let mut root_a = self.find(a);
+        let mut root_b = self.find(b);
+
+        if root_a == root_b {
+            return;
+        }
+
+        if self.size[root_a] < self.size[root_b] {
+            std::mem::swap(&mut root_a, &mut root_b);
+        }
+
+        self.parent[root_b] = root_a;
+        self.size[root_a] += self.size[root_b];
+    }
+
+    fn cluster_size(&mut self, x: usize) -> usize {
+        let root = self.find(x);
+        self.size[root]
+    }
+}
+
+struct Latice {
+    horizontal_edges: Vec<Vec<usize>>,
+    vertical_edges: Vec<Vec<usize>>,
+}
+
+struct RandomLatice {
+    lenght: usize,
+    random_lattice: Latice,
+    union_find: UnionFind,
+    clustered_lattice: Latice,
+}
+
+impl RandomLatice {
+    fn new(length: usize, parameter: f64) -> Self {
+        let mut rng = rand::rng();
+        let mut horizontal_edges = vec![vec![0; length - 1]; length];
+        let mut vertical_edges = vec![vec![0; length]; length - 1];
+        for row in &mut horizontal_edges {
+            for edge in row.iter_mut() {
+                *edge = rng.random_bool(parameter) as usize;
+            }
+        }
+        for row in &mut vertical_edges {
+            for edge in row.iter_mut() {
+                *edge = rng.random_bool(parameter) as usize;
+            }
+        }
+        Self {
+            lenght: length,
+            random_lattice: Latice {
+                horizontal_edges: horizontal_edges,
+                vertical_edges: vertical_edges,
+            },
+            union_find: UnionFind::new(length*length),
+            clustered_lattice: Latice {
+                horizontal_edges : vec![vec![0; length - 1]; length],
+                vertical_edges : vec![vec![0; length]; length - 1],
+            }
         }
     }
 
-    RandomLatice {
-        horizontal_edges,
-        vertical_edges,
-    }
+    fn label_clusters(&mut self) {
+        fn vertex_id(row: usize, col: usize, length: usize) -> usize {
+            row * length + col
+        }
+        let length = self.lenght;
 
+        for (row, edges) in self.random_lattice.horizontal_edges.iter().enumerate() {
+            for (col, &is_open) in edges.iter().enumerate() {
+                if is_open == 1 {
+                    let u = vertex_id(row, col, length);
+                    let v = vertex_id(row, col + 1, length);
+                    self.union_find.union(u, v);
+                }
+            }
+        }
+        for (row, edges) in self.random_lattice.vertical_edges.iter().enumerate() {
+            for (col, &is_open) in edges.iter().enumerate() {
+                if is_open == 1 {
+                    let u = vertex_id(row, col, length);
+                    let v = vertex_id(row + 1, col, length);
+                    self.union_find.union(u, v);
+                }
+            }
+        }
+    }
 }
 
-fn generate_graph(latice: RandomLatice, length: usize) 
+
+fn cluster_labels(lattice: &RandomLatice, uf: &mut UnionFind) {
+    // TODO
+    // Falta obtener la Lattice con las etiquetas de los clusters. Después, meter generate_graph
+    // dentro del objeto de Lattice y adaptar sus elementos.
+}
+
+
+fn generate_graph(latice: RandomLatice, length: usize, output_path: String) 
     -> Result<(), Box<dyn std::error::Error>> {
 
     let size = 2 * MARGIN + (length - 1)* CELL;
     let size = size as u32;
-    let root = SVGBackend::new("img.svg", (size, size))
+    let root = SVGBackend::new(&output_path, (size, size))
         .into_drawing_area();
 
     root.fill(&WHITE)?;
@@ -56,7 +146,7 @@ fn generate_graph(latice: RandomLatice, length: usize)
     // Horizontal edges
     for y in 0..length {
         for x in 0..length - 1 {
-            if !latice.horizontal_edges[y][x] {
+            if latice.random_lattice.horizontal_edges[y][x] == 0 {
                 continue;
             }
             let x1 = (MARGIN + x * CELL) as i32;
@@ -73,7 +163,7 @@ fn generate_graph(latice: RandomLatice, length: usize)
     // Vertical edges
     for y in 0..length - 1 {
         for x in 0..length {
-            if !latice.vertical_edges[y][x] {
+            if latice.random_lattice.vertical_edges[y][x] == 0 {
                 continue;
             }
             let x1 = (MARGIN + x * CELL) as i32;
@@ -103,8 +193,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err("L should be > 2".into());
     }
 
-    let latice = generate_random_latice(cli.length, cli.parameter);
-    generate_graph(latice, cli.length)?;
+    let latice = RandomLatice::new(cli.length, cli.parameter);
+    generate_graph(latice, cli.length, cli.output)?;
 
     Ok(())
 }
