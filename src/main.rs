@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut data: Vec<usize> = Vec::new();
     for _ in 0..1000 {
         let mut lattice = RandomLatice::new(cli.length, cli.parameter)?;
-        lattice.cluster_lattice();
+        lattice.label_clusters();
         let clusters_data = lattice.get_clusters_data();
         data.extend(&clusters_data);
     }

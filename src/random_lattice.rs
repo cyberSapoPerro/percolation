@@ -122,7 +122,8 @@ impl RandomLatice {
         row * self.length + col
     }
 
-    fn label_clusters(&mut self) {
+    pub fn label_clusters(&mut self) {
+        // Union Find Algortihm
         for (row, edges) in self.horizontal_edges.iter().enumerate() {
             for (col, &is_open) in edges.iter().enumerate() {
                 if is_open == 1 {
@@ -141,10 +142,8 @@ impl RandomLatice {
                 }
             }
         }
-    }
 
-    pub fn cluster_lattice(&mut self) {
-        self.label_clusters();
+        // Labeling
         for row in 0..self.length {
             for col in 0..self.length - 1 {
                 if self.horizontal_edges[row][col] == 1 {
