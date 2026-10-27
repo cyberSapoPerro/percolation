@@ -28,6 +28,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut lattice = RandomLatice::new(cli.length, cli.parameter)?;
     lattice.cluster_lattice();
+    let clusters_data = lattice.get_clusters_data();
+    println!("{:?}", clusters_data);
     lattice.graph_lattice(cli.output)?;
 
     Ok(())

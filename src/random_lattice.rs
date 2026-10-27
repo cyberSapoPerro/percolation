@@ -24,22 +24,27 @@ impl UnionFind {
     fn union(&mut self, a: usize, b: usize) {
         let mut root_a = self.find(a);
         let mut root_b = self.find(b);
-
         if root_a == root_b {
             return;
         }
-
         if self.size[root_a] < self.size[root_b] {
             std::mem::swap(&mut root_a, &mut root_b);
         }
-
         self.parent[root_b] = root_a;
         self.size[root_a] += self.size[root_b];
     }
 
-    fn cluster_size(&mut self, x: usize) -> usize {
-        let root = self.find(x);
-        self.size[root]
+    fn get_clusters_data(&self) -> Vec<usize> {
+        self.parent
+            .iter()
+            .enumerate()
+            .filter_map(
+                |(id, &parent)| {
+                    if (id == parent) && (self.size[id] >= 2) 
+                        {Some(self.size[id])} else {None}
+                }
+            )
+            .collect()
     }
 }
 
@@ -145,7 +150,10 @@ impl RandomLatice {
                 }
             }
         }
+    }
 
+    pub fn get_clusters_data(&self) -> Vec<usize> {
+        self.union_find.get_clusters_data()
     }
 
     pub fn graph_lattice(&self, output_path: String) -> Result<(), Box<dyn std::error::Error>>  {
