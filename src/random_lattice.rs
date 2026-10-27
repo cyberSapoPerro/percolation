@@ -41,7 +41,7 @@ impl UnionFind {
             .filter_map(
                 |(id, &parent)| {
                     if (id == parent) && (self.size[id] >= 2) 
-                        {Some(self.size[id])} else {None}
+                    {Some(self.size[id])} else {None}
                 }
             )
             .collect()
@@ -77,6 +77,17 @@ impl std::fmt::Display for RandomLaticeError {
 impl std::error::Error for RandomLaticeError {}
 
 impl RandomLatice {
+    pub fn length(&self) -> usize {
+        self.length
+    }
+
+    pub fn horizontal_edges(&self) -> &[Vec<i32>] {
+        &self.horizontal_edges
+    }
+
+    pub fn vertical_edges(&self) -> &[Vec<i32>] {
+        &self.vertical_edges
+    }
     pub fn new(length: usize, parameter: f64) -> Result<Self, RandomLaticeError> {
 
         if length < 2 {
@@ -154,54 +165,5 @@ impl RandomLatice {
 
     pub fn get_clusters_data(&self) -> Vec<usize> {
         self.union_find.get_clusters_data()
-    }
-
-    pub fn graph_lattice(&self, output_path: String) -> Result<(), Box<dyn std::error::Error>>  {
-        let length = self.length;
-        let cell: usize = 20;
-        let margin: usize = 30;
-        let size = 2 * margin + (length - 1)* cell;
-        let size = size as u32;
-        let root = SVGBackend::new(&output_path, (size, size))
-            .into_drawing_area();
-        root.fill(&WHITE)?;
-
-        // Horizontal edges
-        for y in 0..length {
-            for x in 0..length - 1 {
-                if self.horizontal_edges[y][x] == -1 {
-                    continue;
-                }
-                let x1 = (margin + x * cell) as i32;
-                let y1 = (margin + y * cell) as i32;
-                let x2 = x1 + cell as i32;
-                let color = Palette99::pick(self.horizontal_edges[y][x] as usize).stroke_width(2);
-                root.draw(&PathElement::new(
-                        vec![(x1, y1), (x2, y1)],
-                        color
-                ))?;
-            }
-        }
-
-        // Vertical edges
-        for y in 0..length - 1 {
-            for x in 0..length {
-                if self.vertical_edges[y][x] == -1 {
-                    continue;
-                }
-                let x1 = (margin + x * cell) as i32;
-                let y1 = (margin + y * cell) as i32;
-                let y2 = y1 + cell as i32;
-                let color = Palette99::pick(self.vertical_edges[y][x] as usize).stroke_width(2);
-                root.draw(&PathElement::new(
-                        vec![(x1, y1), (x1, y2)],
-                        color
-                ))?;
-            }
-        }
-
-        root.present()?;
-
-        Ok(())
     }
 }

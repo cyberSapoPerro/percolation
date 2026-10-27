@@ -1,6 +1,9 @@
 mod random_lattice;
+mod plot;
 
 use random_lattice::RandomLatice;
+use plot::graph_lattice;
+use plot::gnu_plot_hist;
 
 use clap::Parser;
 
@@ -18,19 +21,14 @@ struct Cli {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
-    if !(0.0..=1.0).contains(&cli.parameter) {
-        return Err("p should be in [0, 1]".into());
+    let mut data: Vec<usize> = Vec::new();
+    for _ in 0..1000 {
+        let mut lattice = RandomLatice::new(cli.length, cli.parameter)?;
+        lattice.cluster_lattice();
+        let clusters_data = lattice.get_clusters_data();
+        data.extend(&clusters_data);
     }
-
-    if cli.length < 2 {
-        return Err("L should be > 2".into());
-    }
-
-    let mut lattice = RandomLatice::new(cli.length, cli.parameter)?;
-    lattice.cluster_lattice();
-    let clusters_data = lattice.get_clusters_data();
-    println!("{:?}", clusters_data);
-    lattice.graph_lattice(cli.output)?;
+    gnu_plot_hist(data)?;
 
     Ok(())
 }
