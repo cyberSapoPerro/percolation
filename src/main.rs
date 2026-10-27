@@ -2,9 +2,6 @@ use plotters::prelude::*;
 use rand::RngExt;
 use clap::Parser;
 
-const CELL: usize = 20;
-const MARGIN: usize = 30;
-
 #[derive(Parser)]
 struct Cli {
     #[arg(short)]
@@ -57,16 +54,11 @@ impl UnionFind {
     }
 }
 
-struct Latice {
-    horizontal_edges: Vec<Vec<usize>>,
-    vertical_edges: Vec<Vec<usize>>,
-}
-
 struct RandomLatice {
-    lenght: usize,
-    random_lattice: Latice,
+    length: usize,
+    horizontal_edges: Vec<Vec<i32>>,
+    vertical_edges: Vec<Vec<i32>>,
     union_find: UnionFind,
-    clustered_lattice: Latice,
 }
 
 impl RandomLatice {
@@ -76,110 +68,116 @@ impl RandomLatice {
         let mut vertical_edges = vec![vec![0; length]; length - 1];
         for row in &mut horizontal_edges {
             for edge in row.iter_mut() {
-                *edge = rng.random_bool(parameter) as usize;
+                *edge = if rng.random_bool(parameter) {1} else {-1}
             }
         }
         for row in &mut vertical_edges {
             for edge in row.iter_mut() {
-                *edge = rng.random_bool(parameter) as usize;
+                *edge = if rng.random_bool(parameter) {1} else {-1}
             }
         }
         Self {
-            lenght: length,
-            random_lattice: Latice {
-                horizontal_edges: horizontal_edges,
-                vertical_edges: vertical_edges,
-            },
+            length,
+            horizontal_edges: horizontal_edges,
+            vertical_edges: vertical_edges,
             union_find: UnionFind::new(length*length),
-            clustered_lattice: Latice {
-                horizontal_edges : vec![vec![0; length - 1]; length],
-                vertical_edges : vec![vec![0; length]; length - 1],
-            }
         }
+    }
+
+    fn vertex_id(&self, row: usize, col: usize) -> usize {
+        row * self.length + col
     }
 
     fn label_clusters(&mut self) {
-        fn vertex_id(row: usize, col: usize, length: usize) -> usize {
-            row * length + col
-        }
-        let length = self.lenght;
-
-        for (row, edges) in self.random_lattice.horizontal_edges.iter().enumerate() {
+        for (row, edges) in self.horizontal_edges.iter().enumerate() {
             for (col, &is_open) in edges.iter().enumerate() {
                 if is_open == 1 {
-                    let u = vertex_id(row, col, length);
-                    let v = vertex_id(row, col + 1, length);
+                    let u = self.vertex_id(row, col);
+                    let v = self.vertex_id(row, col + 1);
                     self.union_find.union(u, v);
                 }
             }
         }
-        for (row, edges) in self.random_lattice.vertical_edges.iter().enumerate() {
+        for (row, edges) in self.vertical_edges.iter().enumerate() {
             for (col, &is_open) in edges.iter().enumerate() {
                 if is_open == 1 {
-                    let u = vertex_id(row, col, length);
-                    let v = vertex_id(row + 1, col, length);
+                    let u = self.vertex_id(row, col);
+                    let v = self.vertex_id(row + 1, col);
                     self.union_find.union(u, v);
                 }
             }
         }
     }
-}
 
-
-fn cluster_labels(lattice: &RandomLatice, uf: &mut UnionFind) {
-    // TODO
-    // Falta obtener la Lattice con las etiquetas de los clusters. Después, meter generate_graph
-    // dentro del objeto de Lattice y adaptar sus elementos.
-}
-
-
-fn generate_graph(latice: RandomLatice, length: usize, output_path: String) 
-    -> Result<(), Box<dyn std::error::Error>> {
-
-    let size = 2 * MARGIN + (length - 1)* CELL;
-    let size = size as u32;
-    let root = SVGBackend::new(&output_path, (size, size))
-        .into_drawing_area();
-
-    root.fill(&WHITE)?;
-
-    // Horizontal edges
-    for y in 0..length {
-        for x in 0..length - 1 {
-            if latice.random_lattice.horizontal_edges[y][x] == 0 {
-                continue;
+    fn cluster_lattice(&mut self) {
+        self.label_clusters();
+        for row in 0..self.length {
+            for col in 0..self.length - 1 {
+                if self.horizontal_edges[row][col] == 1 {
+                    let u = self.vertex_id(row, col);
+                    self.horizontal_edges[row][col] = self.union_find.find(u) as i32;
+                }
             }
-            let x1 = (MARGIN + x * CELL) as i32;
-            let y1 = (MARGIN + y * CELL) as i32;
-            let x2 = x1 + CELL as i32;
-            let color = BLACK.stroke_width(2);
-            root.draw(&PathElement::new(
-                    vec![(x1, y1), (x2, y1)],
-                    color
-            ))?;
         }
+        for row in 0..self.length - 1 {
+            for col in 0..self.length {
+                if self.vertical_edges[row][col] == 1 {
+                    let u = self.vertex_id(row, col);
+                    self.vertical_edges[row][col] = self.union_find.find(u) as i32;
+                }
+            }
+        }
+
     }
 
-    // Vertical edges
-    for y in 0..length - 1 {
-        for x in 0..length {
-            if latice.random_lattice.vertical_edges[y][x] == 0 {
-                continue;
+    fn graph_lattice(&self, output_path: String) -> Result<(), Box<dyn std::error::Error>>  {
+        let length = self.length;
+        let cell: usize = 20;
+        let margin: usize = 30;
+        let size = 2 * margin + (length - 1)* cell;
+        let size = size as u32;
+        let root = SVGBackend::new(&output_path, (size, size))
+            .into_drawing_area();
+        root.fill(&WHITE)?;
+
+        // Horizontal edges
+        for y in 0..length {
+            for x in 0..length - 1 {
+                if self.horizontal_edges[y][x] == -1 {
+                    continue;
+                }
+                let x1 = (margin + x * cell) as i32;
+                let y1 = (margin + y * cell) as i32;
+                let x2 = x1 + cell as i32;
+                let color = Palette99::pick(self.horizontal_edges[y][x] as usize).stroke_width(2);
+                root.draw(&PathElement::new(
+                        vec![(x1, y1), (x2, y1)],
+                        color
+                ))?;
             }
-            let x1 = (MARGIN + x * CELL) as i32;
-            let y1 = (MARGIN + y * CELL) as i32;
-            let y2 = y1 + CELL as i32;
-            let color = BLACK.stroke_width(2);
-            root.draw(&PathElement::new(
-                    vec![(x1, y1), (x1, y2)],
-                    color
-            ))?;
         }
+
+        // Vertical edges
+        for y in 0..length - 1 {
+            for x in 0..length {
+                if self.vertical_edges[y][x] == -1 {
+                    continue;
+                }
+                let x1 = (margin + x * cell) as i32;
+                let y1 = (margin + y * cell) as i32;
+                let y2 = y1 + cell as i32;
+                let color = Palette99::pick(self.vertical_edges[y][x] as usize).stroke_width(2);
+                root.draw(&PathElement::new(
+                        vec![(x1, y1), (x1, y2)],
+                        color
+                ))?;
+            }
+        }
+
+        root.present()?;
+
+        Ok(())
     }
-
-    root.present()?;
-
-    Ok(())
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -193,8 +191,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err("L should be > 2".into());
     }
 
-    let latice = RandomLatice::new(cli.length, cli.parameter);
-    generate_graph(latice, cli.length, cli.output)?;
+    let mut lattice = RandomLatice::new(cli.length, cli.parameter);
+    lattice.cluster_lattice();
+    lattice.graph_lattice(cli.output)?;
 
     Ok(())
 }
