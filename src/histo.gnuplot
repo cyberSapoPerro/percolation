@@ -15,10 +15,10 @@ binwidth = 10
 binstart = 2
 
 bin(x) = binwidth * floor((x - binstart) / binwidth) \
-         + binstart + binwidth / 2.0
+    + binstart + binwidth / 2.0
 
-         set xrange [2:]
+set xrange [2:]
 
-         plot 'histo.dat' using (bin($1)):(1.0) \
-                                               smooth freq with boxes \
-                                           lc rgb '#4584b6' title 'Clústeres'
+plot 'histo.dat' using (bin($1)):(1.0) \
+    smooth freq with boxes \
+    lc rgb '#4584b6' title 'Clústeres'

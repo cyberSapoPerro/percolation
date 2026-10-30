@@ -17,7 +17,7 @@ struct Cli {
 }
 
 fn save_cluster_data(data: Vec<usize>) -> Result<(), Box<dyn std::error::Error>> {
-    let file = File::create("histo.dat")?;
+    let file = File::create("output/histo.dat")?;
     let mut writer = BufWriter::new(file);
     for size in &data {
         writeln!(writer, "{size}")?;
